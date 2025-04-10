@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pubsub-emulator
+  namespace: gcloud
+  labels:
+    app: pubsub-emulator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pubsub-emulator
+  template:
+    metadata:
+      labels:
+        app: pubsub-emulator
+    spec:
+      shareProcessNamespace: true
+      containers:
+      - name: pubsub-emulator
+        image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+        imagePullPolicy: Always
+        command:
+          [
+            "bash",
+            "-c",
+            "gcloud auth activate-service-account --key-file=/secrets/svc_account.json && gcloud config set project $GCLOUD_PROJECT_ID && gcloud beta emulators pubsub start --host-port=0.0.0.0:8085"
+          ]
+        envFrom:
+        - configMapRef:
+            name: pubsub-emulator-config
+        - secretRef:
+            name: pubsub-emulator-secret
+        ports:
+        - containerPort: 8085
+        volumeMounts:
+        - name: svc-account-volume
+          mountPath: /secrets/svc_account.json
+          subPath: svc_account.json
+          readOnly: true
+      volumes:
+      - name: svc-account-volume
+        secret:
+          secretName: pubsub-emulator-secret

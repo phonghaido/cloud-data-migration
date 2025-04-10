@@ -23,7 +23,7 @@ go.work.sum
 
 # env file
 .env
-gcp_credentials.json
+svc_account.json
 
 # Makefile
 Makefile
