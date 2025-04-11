@@ -27,3 +27,5 @@ svc_account.json
 
 # Makefile
 Makefile
+
+migration_service_dev

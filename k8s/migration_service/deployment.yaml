@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: data-migration-app
+  namespace: data-migration
+  labels:
+    app: data-migration-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: data-migration-app
+  template:
+    metadata:
+      labels:
+        app: data-migration-app
+    spec:
+      shareProcessNamespace: true
+      containers:
+      - name: data-migration-app
+        image: data-migration-app-image
+        imagePullPolicy: Always
+        envFrom:
+        - configMapRef:
+            name: data-migration-app-config
+        - secretRef:
+            name: data-migration-app-secret
+        volumeMounts:
+        - name: gcloud-svc-account-volume
+          mountPath: /secrets/svc_account.json
+          subPath: svc_account.json
+          readOnly: true
+      volumes:
+      - name: gcloud-svc-account-volume
+        secret:
+          secretName: gcloud-service-account-secret

@@ -1,0 +1,41 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespace.yaml
+  - deployment.yaml
+
+images:
+  - name: data-migration-app-image
+    newName: data-migration-app
+    newTag: latest
+
+namespace: data-migration
+
+generatorOptions:
+  disableNameSuffixHash: true
+
+labels:
+  - pairs:
+      app: data-migration-app
+
+configMapGenerator:
+  - name: data-migration-app-config
+    literals:
+      - GCP_PROJECT_ID="feisty-deck-455815-v8"
+      - GCP_BUCKET_NAME="cloud-data-migration-x"
+      - GCP_PUBSUB_HOST="http://localhost:8085"
+      - GCP_SUBSCRIPTION_ID="migrate-data-subscription"
+      - GCP_TOPIC_ID="migrate-data-topic"
+      - AWS_REGION="eu-central-1"
+      - AWS_S3_BUCKET="cloud-data-migration-x"
+      - GCP_CREDENTIALS="/secret/svc_account.json"
+
+secretGenerator:
+  - name: data-migration-app-secret
+    literals:
+      - AWS_ACCESS_KEY_ID=""
+      - AWS_SECRET_ACCESS_KEY=""
+  - name: gcloud-service-account-secret
+    files:
+      - svc_account.json=./secret/svc_account.json

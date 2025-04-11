@@ -5,6 +5,7 @@ import (
 	"io"
 	"time"
 
+	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/storage"
 	"github.com/phonghaido/cloud-data-migration/internal/config"
 	"google.golang.org/api/option"
@@ -13,17 +14,25 @@ import (
 type GCPClient struct {
 	GCPClientConfig config.GCPClientConfig
 	StorageClient   *storage.Client
+	PubSubClient    *pubsub.Client
 }
 
 func NewGCPClient(c config.GCPClientConfig) (GCPClient, error) {
-	client, err := storage.NewClient(context.Background(), option.WithCredentialsFile(c.GCPCredentials))
+	ctx := context.Background()
+	storageClient, err := storage.NewClient(ctx, option.WithCredentialsFile(c.GCPCredentials))
+	if err != nil {
+		return GCPClient{}, err
+	}
+
+	pubsubClient, err := pubsub.NewClient(ctx, c.ProjectID, option.WithCredentialsFile(c.GCPCredentials))
 	if err != nil {
 		return GCPClient{}, err
 	}
 
 	return GCPClient{
 		GCPClientConfig: c,
-		StorageClient:   client,
+		StorageClient:   storageClient,
+		PubSubClient:    pubsubClient,
 	}, nil
 }
 
