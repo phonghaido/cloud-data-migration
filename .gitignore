@@ -29,3 +29,5 @@ svc_account.json
 Makefile
 
 migration_service_dev
+
+.vscode

@@ -7,25 +7,24 @@ import (
 )
 
 func main() {
+	systemConfig, err := config.GetSystemConfig()
+	if err != nil {
+		logrus.Fatalf("Error while parsing system config: %v", err)
+	}
 	awsClientConfig := config.GetAWSConfig()
 	awsClient := handlers.NewAWSClient(awsClientConfig)
 
-	gcpClientConfig := config.GetGCPConfig()
-	gcpClient, err := handlers.NewGCPClient(gcpClientConfig)
+	gcsClientConfig := config.GetGCPConfig()
+	gcsClient, err := handlers.NewGCSClient(gcsClientConfig)
 	if err != nil {
-		logrus.Fatalf("Error while creating GCP client: %v", err)
+		logrus.Fatalf("Error while creating GCS client: %v", err)
 	}
 
-	key := "test-1/CV - PhongHaiDo.pdf"
-
-	output, err := awsClient.DownloadFromS3(key)
+	pubsubClientConfig := config.GetPubSubConfig()
+	pubsubClient, err := handlers.NewPubSucClient(pubsubClientConfig, systemConfig)
 	if err != nil {
-		logrus.Fatalf("Error while downloading file from AWS S3: %v", err)
+		logrus.Fatalf("Error while creating PubSub client: %v", err)
 	}
 
-	err = gcpClient.UploadFile(output, key)
-	if err != nil {
-		logrus.Fatalf("Error while uploading file to GCS: %v", err)
-	}
-
+	pubsubClient.PubSubHandler(awsClient, gcsClient)
 }

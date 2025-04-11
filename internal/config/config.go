@@ -1,6 +1,9 @@
 package config
 
 import (
+	"errors"
+	"strconv"
+
 	"github.com/spf13/viper"
 )
 
@@ -11,13 +14,22 @@ type AWSClientConfig struct {
 	S3Bucket           string `json:"s3_bucket"`
 }
 
-type GCPClientConfig struct {
+type GCSClientConfig struct {
 	ProjectID      string
 	BucketName     string
+	GCPCredentials string
+}
+
+type PubSubClientConfig struct {
+	ProjectID      string
 	GCPCredentials string
 	SubScriptionID string
 	TopicID        string
 	PubSubHost     string
+}
+
+type SystemConfig struct {
+	MaxWorker int
 }
 
 func GetAWSConfig() AWSClientConfig {
@@ -36,22 +48,57 @@ func GetAWSConfig() AWSClientConfig {
 	}
 }
 
-func GetGCPConfig() GCPClientConfig {
+func GetGCPConfig() GCSClientConfig {
 	viper.AutomaticEnv()
 
 	viper.SetDefault("GCP_CREDENTIALS", "")
 	viper.SetDefault("GCP_PROJECT_ID", "")
 	viper.SetDefault("GCP_BUCKET_NAME", "")
+
+	return GCSClientConfig{
+		ProjectID:      viper.GetString("GCP_PROJECT_ID"),
+		BucketName:     viper.GetString("GCP_BUCKET_NAME"),
+		GCPCredentials: viper.GetString("GCP_CREDENTIALS"),
+	}
+}
+
+func GetPubSubConfig() PubSubClientConfig {
+	viper.AutomaticEnv()
+
+	viper.SetDefault("GCP_CREDENTIALS", "")
+	viper.SetDefault("GCP_PROJECT_ID", "")
 	viper.SetDefault("GCP_PUBSUB_HOST", "")
 	viper.SetDefault("GCP_SUBSCRIPTION_ID", "")
 	viper.SetDefault("GCP_TOPIC_ID", "")
 
-	return GCPClientConfig{
+	return PubSubClientConfig{
 		ProjectID:      viper.GetString("GCP_PROJECT_ID"),
-		BucketName:     viper.GetString("GCP_BUCKET_NAME"),
 		GCPCredentials: viper.GetString("GCP_CREDENTIALS"),
 		SubScriptionID: viper.GetString("GCP_SUBSCRIPTION_ID"),
 		TopicID:        viper.GetString("GCP_TOPIC_ID"),
 		PubSubHost:     viper.GetString("GCP_PUBSUB_HOST"),
 	}
+}
+
+func GetSystemConfig() (SystemConfig, error) {
+	viper.AutomaticEnv()
+
+	viper.SetDefault("SYSTEM_MAX_WORKERS", 5)
+	maxWorkersInterface := viper.Get("SYSTEM_MAX_WORKERS")
+	maxWorkers, ok := maxWorkersInterface.(int)
+	if !ok {
+		if str, ok := maxWorkersInterface.(string); ok {
+			parsedValue, err := strconv.Atoi(str)
+			if err != nil {
+				return SystemConfig{}, errors.New("SYSTEM_MAX_WORKERS must be an integer")
+			}
+			maxWorkers = parsedValue
+		} else {
+			return SystemConfig{}, errors.New("SYSTEM_MAX_WORKERS must be an integer")
+		}
+	}
+
+	return SystemConfig{
+		MaxWorker: maxWorkers,
+	}, nil
 }
