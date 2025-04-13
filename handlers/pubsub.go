@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"os"
 
 	"cloud.google.com/go/pubsub"
 	"github.com/phonghaido/cloud-data-migration/internal/config"
@@ -16,6 +17,10 @@ type PubSubClient struct {
 }
 
 func NewPubSucClient(c config.PubSubClientConfig, sc config.SystemConfig) (PubSubClient, error) {
+	err := os.Setenv("PUBSUB_EMULATOR_HOST", c.PubSubHost)
+	if err != nil {
+		return PubSubClient{}, err
+	}
 	ctx := context.Background()
 	pubsubClient, err := pubsub.NewClient(ctx, c.ProjectID, option.WithCredentialsFile(c.GCPCredentials))
 	if err != nil {
@@ -42,6 +47,8 @@ func (ps PubSubClient) VerifyTopicAndSubScription() (*pubsub.Subscription, error
 			return nil, err
 		}
 		logrus.Infof("Successfully created Pub/Sub topic: %s", ps.PubSubClientConfig.TopicID)
+	} else {
+		logrus.Infof("Topic %s already existed", ps.PubSubClientConfig.TopicID)
 	}
 
 	sub := ps.PubSubClient.Subscription(ps.PubSubClientConfig.SubScriptionID)
@@ -57,6 +64,8 @@ func (ps PubSubClient) VerifyTopicAndSubScription() (*pubsub.Subscription, error
 			return nil, err
 		}
 		logrus.Infof("Successfully created Pub/Sub subscription: %s", ps.PubSubClientConfig.SubScriptionID)
+	} else {
+		logrus.Infof("Subscription %s already existed", ps.PubSubClientConfig.SubScriptionID)
 	}
 
 	return sub, nil

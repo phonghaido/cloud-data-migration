@@ -23,7 +23,7 @@ labels:
 configMapGenerator:
   - name: pubsub-emulator-config
     literals:
-      - GCLOUD_PROJECT_ID="feisty-deck-455815-v8"
+      - GCLOUD_PROJECT_ID=""
 
 secretGenerator:
   - name: pubsub-emulator-secret

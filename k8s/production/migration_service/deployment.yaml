@@ -18,8 +18,8 @@ spec:
       shareProcessNamespace: true
       containers:
       - name: data-migration-app
-        image: data-migration-app-image
-        imagePullPolicy: Always
+        image: data-migration-app:latest
+        imagePullPolicy: Never
         envFrom:
         - configMapRef:
             name: data-migration-app-config
