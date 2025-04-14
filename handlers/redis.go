@@ -33,10 +33,10 @@ func (r RedisClient) IsConsumed(ctx context.Context, key string) (int64, error) 
 	return r.RedisClient.Exists(ctx, "consumed:"+key).Result()
 }
 
-func (r RedisClient) MarkAsPublished(ctx context.Context, key string) error {
-	return r.RedisClient.Set(ctx, "published:"+key, true, 0).Err()
+func (r RedisClient) MarkAsPublished(ctx context.Context, key string, value string) error {
+	return r.RedisClient.Set(ctx, "published:"+key, value, 0).Err()
 }
 
-func (r RedisClient) MarkAsConsumed(ctx context.Context, key string) error {
-	return r.RedisClient.Set(ctx, "consumed:"+key, true, 0).Err()
+func (r RedisClient) MarkAsConsumed(ctx context.Context, key string, value string) error {
+	return r.RedisClient.Set(ctx, "consumed:"+key, value, 0).Err()
 }

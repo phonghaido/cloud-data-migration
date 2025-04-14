@@ -11,6 +11,7 @@ func main() {
 	if err != nil {
 		logrus.Fatalf("Error while parsing system config: %v", err)
 	}
+
 	awsClientConfig := config.GetAWSConfig()
 	awsClient := handlers.NewAWSClient(awsClientConfig)
 
@@ -19,12 +20,14 @@ func main() {
 	if err != nil {
 		logrus.Fatalf("Error while creating GCS client: %v", err)
 	}
+	defer gcsClient.StorageClient.Close()
 
 	pubsubClientConfig := config.GetPubSubConfig()
 	pubsubClient, err := handlers.NewPubSucClient(pubsubClientConfig, systemConfig)
 	if err != nil {
 		logrus.Fatalf("Error while creating PubSub client: %v", err)
 	}
+	defer pubsubClient.PubSubClient.Close()
 
 	pubsubClient.PubSubHandler(awsClient, gcsClient)
 }

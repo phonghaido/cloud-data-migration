@@ -35,7 +35,7 @@ func NewPubSucClient(c config.PubSubClientConfig, sc config.SystemConfig) (PubSu
 	}, nil
 }
 
-func (ps PubSubClient) VerifyTopicAndSubScription() (*pubsub.Subscription, error) {
+func (ps PubSubClient) VerifyTopic() (*pubsub.Topic, error) {
 	logrus.Infof("Verifying PubSub topic (%s) and subscription (%s)", ps.PubSubClientConfig.TopicID, ps.PubSubClientConfig.SubScriptionID)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -56,8 +56,13 @@ func (ps PubSubClient) VerifyTopicAndSubScription() (*pubsub.Subscription, error
 		logrus.Infof("Topic %s already existed", ps.PubSubClientConfig.TopicID)
 	}
 
+	return topic, nil
+}
+
+func (ps PubSubClient) VerifySubscription(topic *pubsub.Topic) (*pubsub.Subscription, error) {
+	ctx := context.Background()
 	sub := ps.PubSubClient.Subscription(ps.PubSubClientConfig.SubScriptionID)
-	ok, err = sub.Exists(ctx)
+	ok, err := sub.Exists(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +83,12 @@ func (ps PubSubClient) VerifyTopicAndSubScription() (*pubsub.Subscription, error
 
 func (ps PubSubClient) PubSubHandler(awsClient AWSClient, gcsClient GCSClient) error {
 	ctx := context.Background()
-	sub, err := ps.VerifyTopicAndSubScription()
+	topic, err := ps.VerifyTopic()
+	if err != nil {
+		return err
+	}
+
+	sub, err := ps.VerifySubscription(topic)
 	if err != nil {
 		return err
 	}
@@ -111,4 +121,23 @@ func (ps PubSubClient) PubSubHandler(awsClient AWSClient, gcsClient GCSClient) e
 	})
 
 	return err
+}
+
+func (ps PubSubClient) PublishKey(key string) (string, error) {
+	ctx := context.Background()
+	topic, err := ps.VerifyTopic()
+	if err != nil {
+		return "", err
+	}
+
+	result := topic.Publish(ctx, &pubsub.Message{
+		Data: []byte(key),
+	})
+
+	pubID, err := result.Get(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	return pubID, nil
 }

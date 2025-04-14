@@ -50,7 +50,7 @@ func (a AWSClient) DownloadFromS3(key string) (io.ReadCloser, error) {
 	return out.Body, nil
 }
 
-func (a AWSClient) ListAllObject(redisClient RedisClient) error {
+func (a AWSClient) PublishS3Keys(redisClient RedisClient, pubsubClient PubSubClient) error {
 	ctx := context.Background()
 	resp, err := a.S3Client.ListObjectsV2(&s3.ListObjectsV2Input{
 		Bucket: aws.String(a.S3ClientConfig.S3Bucket),
@@ -71,7 +71,11 @@ func (a AWSClient) ListAllObject(redisClient RedisClient) error {
 		}
 
 		if isPublished == 0 {
-			redisClient.MarkAsPublished(ctx, key)
+			pubID, err := pubsubClient.PublishKey(key)
+			if err != nil {
+				return err
+			}
+			redisClient.MarkAsPublished(ctx, key, pubID)
 			logrus.Infof("Successfully published for the key: %s", key)
 		}
 	}
