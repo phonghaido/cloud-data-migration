@@ -31,3 +31,5 @@ Makefile
 **/dev/*
 
 .vscode
+
+docker-compose-*.yaml

@@ -1,0 +1,39 @@
+services:
+  pubsub-emulator:
+    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+    container_name: pubsub-emulator
+    environment:
+      - GCLOUD_PROJECT_ID=feisty-deck-455815-v8
+    volumes:
+      - ./k8s/dev/pubsub/secret:/secrets:ro
+    ports:
+      - "8085:8085"
+    command: >
+      bash -c "
+        gcloud auth activate-service-account --key-file=/secrets/svc_account.json &&
+        gcloud config set project $$GCLOUD_PROJECT_ID &&
+        gcloud beta emulators pubsub start --host-port=0.0.0.0:8085
+      "
+    hostname: pubsub-emulator
+  data-migration-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: data-migration-app
+    depends_on:
+      - pubsub-emulator
+    environment:
+      - GCP_PROJECT_ID=
+      - GCP_BUCKET_NAME=
+      - GCP_PUBSUB_HOST=
+      - GCP_SUBSCRIPTION_ID=
+      - GCP_TOPIC_ID=
+      - AWS_REGION=
+      - AWS_S3_BUCKET=
+      - GCP_CREDENTIALS=
+      - SYSTEM_MAX_WORKERS=
+      - AWS_ACCESS_KEY_ID=
+      - AWS_SECRET_ACCESS_KEY=
+    volumes:
+      - ./k8s/dev/migration_service/secret:/secrets:ro
+    restart: always

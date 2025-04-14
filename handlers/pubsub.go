@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"os"
+	"time"
 
 	"cloud.google.com/go/pubsub"
 	"github.com/phonghaido/cloud-data-migration/internal/config"
@@ -35,12 +36,16 @@ func NewPubSucClient(c config.PubSubClientConfig, sc config.SystemConfig) (PubSu
 }
 
 func (ps PubSubClient) VerifyTopicAndSubScription() (*pubsub.Subscription, error) {
-	ctx := context.Background()
+	logrus.Infof("Verifying PubSub topic (%s) and subscription (%s)", ps.PubSubClientConfig.TopicID, ps.PubSubClientConfig.SubScriptionID)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
 	topic := ps.PubSubClient.Topic(ps.PubSubClientConfig.TopicID)
 	ok, err := topic.Exists(ctx)
 	if err != nil {
 		return nil, err
 	}
+
 	if !ok {
 		topic, err = ps.PubSubClient.CreateTopic(ctx, ps.PubSubClientConfig.TopicID)
 		if err != nil {
