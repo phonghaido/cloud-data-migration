@@ -6,8 +6,8 @@ resources:
   - deployment.yaml
 
 images:
-  - name: data-migration-app-image
-    newName: data-migration-app
+  - name: publisher-image
+    newName: publisher
     newTag: latest
 
 namespace: data-migration
@@ -17,10 +17,10 @@ generatorOptions:
 
 labels:
   - pairs:
-      app: data-migration-app
+      app: publisher
 
 configMapGenerator:
-  - name: data-migration-app-config
+  - name: publisher-config
     literals:
       - GCP_PROJECT_ID="feisty-deck-455815-v8"
       - GCP_BUCKET_NAME="cloud-data-migration-x"
@@ -31,12 +31,14 @@ configMapGenerator:
       - AWS_S3_BUCKET="cloud-data-migration-x"
       - GCP_CREDENTIALS="/secrets/svc_account.json"
       - SYSTEM_MAX_WORKERS=5
+      - REDIS_ADDRESS="redis.database.svc.cluster.local:6379"
 
 secretGenerator:
-  - name: data-migration-app-secret
+  - name: publisher-secret
     literals:
       - AWS_ACCESS_KEY_ID=""
       - AWS_SECRET_ACCESS_KEY=""
+      - REDIS_PASSWORD=""
   - name: gcloud-service-account-secret
     files:
       - svc_account.json=./secret/svc_account.json

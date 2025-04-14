@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: publisher
+  namespace: data-migration
+  labels:
+    app: publisher
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: publisher
+  template:
+    metadata:
+      labels:
+        app: publisher
+    spec:
+      shareProcessNamespace: true
+      containers:
+      - name: publisher
+        image: publisher:latest
+        imagePullPolicy: Never
+        envFrom:
+        - configMapRef:
+            name: publisher-config
+        - secretRef:
+            name: publisher-secret
+        volumeMounts:
+        - name: gcloud-svc-account-volume
+          mountPath: /secrets/svc_account.json
+          subPath: svc_account.json
+          readOnly: true
+      volumes:
+      - name: gcloud-svc-account-volume
+        secret:
+          secretName: gcloud-service-account-secret
+      restartPolicy: Always
