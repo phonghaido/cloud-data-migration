@@ -15,6 +15,15 @@ services:
         gcloud beta emulators pubsub start --host-port=0.0.0.0:8085
       "
     hostname: pubsub-emulator
+  redis:
+    image: redis:7
+    container_name: redis-secure
+    command: [ "redis-server", "--requirepass", "password" ]
+    ports:
+      - "6379:6379"
+    restart: always
+    volumes:
+      - cache:/data
   data-migration-app:
     build:
       context: .
@@ -37,3 +46,6 @@ services:
     volumes:
       - ./k8s/dev/migration_service/secret:/secrets:ro
     restart: always
+volumes:
+  cache:
+    driver: local

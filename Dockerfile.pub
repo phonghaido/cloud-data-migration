@@ -7,6 +7,6 @@ RUN go mod download
 
 COPY . .
 
-RUN go build -o ./bin/app ./cmd
+RUN go build -o ./bin/pub ./cmd/publish_to_topic
 
-CMD [ "./bin/app" ]
+CMD [ "./bin/pub" ]

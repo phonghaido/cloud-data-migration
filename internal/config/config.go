@@ -32,6 +32,11 @@ type SystemConfig struct {
 	MaxWorker int
 }
 
+type RedisConfig struct {
+	Address  string
+	Password string
+}
+
 func GetAWSConfig() AWSClientConfig {
 	viper.AutomaticEnv()
 
@@ -101,4 +106,16 @@ func GetSystemConfig() (SystemConfig, error) {
 	return SystemConfig{
 		MaxWorker: maxWorkers,
 	}, nil
+}
+
+func GetRedisConfig() RedisConfig {
+	viper.AutomaticEnv()
+
+	viper.SetDefault("REDIS_ADDRESS", "")
+	viper.SetDefault("REDIS_PASSWORD", "")
+
+	return RedisConfig{
+		Address:  viper.GetString("REDIS_ADDRESS"),
+		Password: viper.GetString("REDIS_PASSWORD"),
+	}
 }

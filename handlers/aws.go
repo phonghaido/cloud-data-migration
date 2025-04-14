@@ -1,15 +1,18 @@
 package handlers
 
 import (
+	"context"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/phonghaido/cloud-data-migration/internal/config"
+	"github.com/sirupsen/logrus"
 )
 
 type AWSClient struct {
@@ -45,6 +48,35 @@ func (a AWSClient) DownloadFromS3(key string) (io.ReadCloser, error) {
 	}
 
 	return out.Body, nil
+}
+
+func (a AWSClient) ListAllObject(redisClient RedisClient) error {
+	ctx := context.Background()
+	resp, err := a.S3Client.ListObjectsV2(&s3.ListObjectsV2Input{
+		Bucket: aws.String(a.S3ClientConfig.S3Bucket),
+	})
+	if err != nil {
+		return err
+	}
+
+	for _, item := range resp.Contents {
+		key := *item.Key
+		if *item.Size == 0 && strings.HasSuffix(key, "/") {
+			continue
+		}
+
+		isPublished, err := redisClient.IsPublished(ctx, key)
+		if err != nil {
+			return err
+		}
+
+		if isPublished == 0 {
+			redisClient.MarkAsPublished(ctx, key)
+			logrus.Infof("Successfully published for the key: %s", key)
+		}
+	}
+
+	return nil
 }
 
 func (a AWSClient) WriteToLocal(key string) error {
