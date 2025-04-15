@@ -7,6 +7,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/phonghaido/cloud-data-migration/internal/config"
+	"github.com/sirupsen/logrus"
 	"google.golang.org/api/option"
 )
 
@@ -43,6 +44,8 @@ func (g GCSClient) UploadFile(reader io.ReadCloser, objectName string) error {
 	if err := wc.Close(); err != nil {
 		return err
 	}
+
+	logrus.Infof("Upload complete: %s", objectName)
 
 	return nil
 }
