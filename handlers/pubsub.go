@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"time"
 
@@ -15,6 +16,11 @@ type PubSubClient struct {
 	SystemConfig       config.SystemConfig
 	PubSubClientConfig config.PubSubClientConfig
 	PubSubClient       *pubsub.Client
+}
+
+type Message struct {
+	Key  string `json:"key"`
+	ETag string `json:"etag"`
 }
 
 func NewPubSucClient(c config.PubSubClientConfig, sc config.SystemConfig) (PubSubClient, error) {
@@ -36,7 +42,6 @@ func NewPubSucClient(c config.PubSubClientConfig, sc config.SystemConfig) (PubSu
 }
 
 func (ps PubSubClient) VerifyTopic() (*pubsub.Topic, error) {
-	logrus.Infof("Verifying PubSub topic (%s) and subscription (%s)", ps.PubSubClientConfig.TopicID, ps.PubSubClientConfig.SubScriptionID)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -52,8 +57,6 @@ func (ps PubSubClient) VerifyTopic() (*pubsub.Topic, error) {
 			return nil, err
 		}
 		logrus.Infof("Successfully created Pub/Sub topic: %s", ps.PubSubClientConfig.TopicID)
-	} else {
-		logrus.Infof("Topic %s already existed", ps.PubSubClientConfig.TopicID)
 	}
 
 	return topic, nil
@@ -74,14 +77,12 @@ func (ps PubSubClient) VerifySubscription(topic *pubsub.Topic) (*pubsub.Subscrip
 			return nil, err
 		}
 		logrus.Infof("Successfully created Pub/Sub subscription: %s", ps.PubSubClientConfig.SubScriptionID)
-	} else {
-		logrus.Infof("Subscription %s already existed", ps.PubSubClientConfig.SubScriptionID)
 	}
 
 	return sub, nil
 }
 
-func (ps PubSubClient) PubSubHandler(awsClient AWSClient, gcsClient GCSClient) error {
+func (ps PubSubClient) ProcessMessage(awsClient AWSClient, gcsClient GCSClient, redisClient RedisClient) error {
 	ctx := context.Background()
 	topic, err := ps.VerifyTopic()
 	if err != nil {
@@ -94,28 +95,34 @@ func (ps PubSubClient) PubSubHandler(awsClient AWSClient, gcsClient GCSClient) e
 	}
 
 	sem := make(chan struct{}, ps.SystemConfig.MaxWorker)
-	logrus.Info("Waiting for message")
+	logrus.Info("Waiting for message...")
 
 	err = sub.Receive(ctx, func(ctx context.Context, msg *pubsub.Message) {
 		sem <- struct{}{}
 		go func(msg *pubsub.Message) {
 			defer func() { <-sem }()
-			key := string(msg.Data)
+			var fileMsg Message
+			if err := json.Unmarshal(msg.Data, &fileMsg); err != nil {
+				logrus.Warnf("Skipping invalid message: %s - error: %v", string(msg.Data), err)
+				msg.Ack()
+				return
+			}
 
-			body, err := awsClient.DownloadFromS3(key)
+			body, err := awsClient.DownloadFromS3(fileMsg.Key)
 			if err != nil {
 				logrus.Errorf("Download failed: %v", err)
 				msg.Nack()
 				return
 			}
 
-			err = gcsClient.UploadFile(body, key)
+			err = gcsClient.UploadFile(body, fileMsg.Key)
 			if err != nil {
 				logrus.Errorf("Uploaded failed: %v", err)
 				msg.Nack()
 				return
 			}
-			logrus.Infof("Successfully processed: %s", key)
+
+			logrus.Infof("Successfully processed: %s", fileMsg.Key)
 			msg.Ack()
 		}(msg)
 	})
@@ -123,21 +130,26 @@ func (ps PubSubClient) PubSubHandler(awsClient AWSClient, gcsClient GCSClient) e
 	return err
 }
 
-func (ps PubSubClient) PublishKey(key string) (string, error) {
+func (ps PubSubClient) PublishMessage(msg Message) error {
 	ctx := context.Background()
 	topic, err := ps.VerifyTopic()
 	if err != nil {
-		return "", err
+		return err
 	}
 
+	msgData, err := json.Marshal(msg)
+	if err != nil {
+		return err
+	}
 	result := topic.Publish(ctx, &pubsub.Message{
-		Data: []byte(key),
+		Data: msgData,
 	})
 
-	pubID, err := result.Get(ctx)
-	if err != nil {
-		return "", err
+	if _, err = result.Get(ctx); err != nil {
+		return err
 	}
 
-	return pubID, nil
+	logrus.Infof("Successfully published message for file %s with ETag %s", msg.Key, msg.ETag)
+
+	return nil
 }

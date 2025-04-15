@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/phonghaido/cloud-data-migration/internal/config"
 	"github.com/redis/go-redis/v9"
@@ -25,18 +26,48 @@ func NewRedisClient(c config.RedisConfig) RedisClient {
 	}
 }
 
-func (r RedisClient) IsPublished(ctx context.Context, key string) (int64, error) {
-	return r.RedisClient.Exists(ctx, "published:"+key).Result()
+func (r RedisClient) IsPublished(ctx context.Context, key, eTag string) (bool, error) {
+	value, err := r.RedisClient.Get(ctx, "published:"+key).Result()
+	if err == redis.Nil {
+		return false, nil
+	} else if err != nil {
+		return true, err
+	} else {
+		var msg Message
+		if err := json.Unmarshal([]byte(value), &msg); err != nil {
+			return false, err
+		}
+		return msg.ETag == eTag, nil
+	}
 }
 
-func (r RedisClient) IsConsumed(ctx context.Context, key string) (int64, error) {
-	return r.RedisClient.Exists(ctx, "consumed:"+key).Result()
+func (r RedisClient) IsConsumed(ctx context.Context, key, eTag string) (bool, error) {
+	value, err := r.RedisClient.Get(ctx, "consumed:"+key).Result()
+	if err == redis.Nil {
+		return false, nil
+	} else if err != nil {
+		return true, err
+	} else {
+		var msg Message
+		if err := json.Unmarshal([]byte(value), &msg); err != nil {
+			return false, err
+		}
+		return msg.ETag == eTag, nil
+	}
 }
 
-func (r RedisClient) MarkAsPublished(ctx context.Context, key string, value string) error {
-	return r.RedisClient.Set(ctx, "published:"+key, value, 0).Err()
+func (r RedisClient) MarkAsPublished(ctx context.Context, value Message) error {
+	msg, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	return r.RedisClient.Set(ctx, "published:"+value.Key, msg, 0).Err()
 }
 
-func (r RedisClient) MarkAsConsumed(ctx context.Context, key string, value string) error {
-	return r.RedisClient.Set(ctx, "consumed:"+key, value, 0).Err()
+func (r RedisClient) MarkAsConsumed(ctx context.Context, value Message) error {
+	msg, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	return r.RedisClient.Set(ctx, "consumed:"+value.Key, msg, 0).Err()
 }

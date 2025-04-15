@@ -29,5 +29,9 @@ func main() {
 	}
 	defer pubsubClient.PubSubClient.Close()
 
-	pubsubClient.PubSubHandler(awsClient, gcsClient)
+	redisConfig := config.GetRedisConfig()
+	redisClient := handlers.NewRedisClient(redisConfig)
+	defer redisClient.RedisClient.Close()
+
+	pubsubClient.ProcessMessage(awsClient, gcsClient, redisClient)
 }

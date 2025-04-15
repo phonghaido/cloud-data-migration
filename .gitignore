@@ -25,7 +25,7 @@ go.work.sum
 .env
 
 # Makefile
-Makefile
+Makefile-dev
 
 **/secret/*
 **/dev/*

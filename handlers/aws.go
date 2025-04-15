@@ -12,7 +12,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/phonghaido/cloud-data-migration/internal/config"
-	"github.com/sirupsen/logrus"
 )
 
 type AWSClient struct {
@@ -61,22 +60,30 @@ func (a AWSClient) PublishS3Keys(redisClient RedisClient, pubsubClient PubSubCli
 
 	for _, item := range resp.Contents {
 		key := *item.Key
+		eTag := strings.Trim(*item.ETag, "\"")
+
 		if *item.Size == 0 && strings.HasSuffix(key, "/") {
 			continue
 		}
 
-		isPublished, err := redisClient.IsPublished(ctx, key)
+		published, err := redisClient.IsPublished(ctx, key, eTag)
 		if err != nil {
 			return err
 		}
 
-		if isPublished == 0 {
-			pubID, err := pubsubClient.PublishKey(key)
-			if err != nil {
+		if !published {
+			msg := Message{
+				Key:  key,
+				ETag: eTag,
+			}
+
+			if err := pubsubClient.PublishMessage(msg); err != nil {
 				return err
 			}
-			redisClient.MarkAsPublished(ctx, key, pubID)
-			logrus.Infof("Successfully published for the key: %s", key)
+
+			if err = redisClient.MarkAsPublished(ctx, msg); err != nil {
+				return err
+			}
 		}
 	}
 
