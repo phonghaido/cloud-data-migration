@@ -108,21 +108,36 @@ func (ps PubSubClient) ProcessMessage(awsClient AWSClient, gcsClient GCSClient, 
 				return
 			}
 
-			body, err := awsClient.DownloadFromS3(fileMsg.Key)
+			consumed, err := redisClient.IsConsumed(ctx, fileMsg.Key, fileMsg.ETag)
 			if err != nil {
-				logrus.Errorf("Download failed: %v", err)
-				msg.Nack()
+				logrus.Warnf("Cannot read consumed message {Key: %s, ETag: %s} from cache. Error: %v", fileMsg.Key, fileMsg.ETag, err)
+				msg.Ack()
 				return
 			}
 
-			err = gcsClient.UploadFile(body, fileMsg.Key)
-			if err != nil {
-				logrus.Errorf("Uploaded failed: %v", err)
-				msg.Nack()
-				return
-			}
+			if !consumed {
+				body, err := awsClient.DownloadFromS3(fileMsg.Key)
+				if err != nil {
+					logrus.Errorf("Download failed: %v", err)
+					msg.Nack()
+					return
+				}
 
-			logrus.Infof("Successfully processed: %s", fileMsg.Key)
+				err = gcsClient.UploadFile(body, fileMsg.Key)
+				if err != nil {
+					logrus.Errorf("Uploaded failed: %v", err)
+					msg.Nack()
+					return
+				}
+
+				if err = redisClient.MarkAsConsumed(ctx, fileMsg); err != nil {
+					logrus.Warnf("Cannot mark message of {Key: %s, ETag: %s} as consumed. Error: %v", fileMsg.Key, fileMsg.ETag, err)
+					msg.Ack()
+					return
+				}
+
+				logrus.Infof("Successfully processed: %s", fileMsg.Key)
+			}
 			msg.Ack()
 		}(msg)
 	})
