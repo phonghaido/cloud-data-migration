@@ -10,6 +10,8 @@ export GCP_PUBSUB_HOST := http://localhost:8085
 export GCP_SUBSCRIPTION_ID :=
 export GCP_TOPIC_ID :=
 export SYSTEM_MAX_WORKERS := 5
+export SYSTEM_ADMIN_USERNAME :=
+export SYSTEM_ADMIN_PASSWORD :=
 
 
 all: build run

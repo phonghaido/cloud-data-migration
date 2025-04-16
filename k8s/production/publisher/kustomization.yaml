@@ -32,6 +32,7 @@ configMapGenerator:
       - GCP_CREDENTIALS="/secrets/svc_account.json"
       - SYSTEM_MAX_WORKERS=5
       - REDIS_ADDRESS="redis.database.svc.cluster.local:6379"
+      - SYSTEM_ADMIN_USERNAME=""
 
 secretGenerator:
   - name: publisher-secret
@@ -39,6 +40,7 @@ secretGenerator:
       - AWS_ACCESS_KEY_ID=""
       - AWS_SECRET_ACCESS_KEY=""
       - REDIS_PASSWORD=""
+      - SYSTEM_ADMIN_PASSWORD=""
   - name: gcloud-service-account-secret
     files:
       - svc_account.json=./secret/svc_account.json

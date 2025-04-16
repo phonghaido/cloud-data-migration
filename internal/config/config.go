@@ -29,7 +29,9 @@ type PubSubClientConfig struct {
 }
 
 type SystemConfig struct {
-	MaxWorker int
+	MaxWorker     int
+	AdminUsername string
+	AdminPassword string
 }
 
 type RedisConfig struct {
@@ -89,6 +91,9 @@ func GetSystemConfig() (SystemConfig, error) {
 	viper.AutomaticEnv()
 
 	viper.SetDefault("SYSTEM_MAX_WORKERS", 5)
+	viper.SetDefault("SYSTEM_ADMIN_USERNAME", "")
+	viper.SetDefault("SYSTEM_ADMIN_PASSWORD", "")
+
 	maxWorkersInterface := viper.Get("SYSTEM_MAX_WORKERS")
 	maxWorkers, ok := maxWorkersInterface.(int)
 	if !ok {
@@ -104,7 +109,9 @@ func GetSystemConfig() (SystemConfig, error) {
 	}
 
 	return SystemConfig{
-		MaxWorker: maxWorkers,
+		MaxWorker:     maxWorkers,
+		AdminUsername: viper.GetString("SYSTEM_ADMIN_USERNAME"),
+		AdminPassword: viper.GetString("SYSTEM_ADMIN_PASSWORD"),
 	}, nil
 }
 
