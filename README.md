@@ -8,7 +8,8 @@ A project for migrating data from one Amazone S3 to Google Cloud Storage. The sy
 - **PubSub Emulator**: Message queue to coordinate and distribute message to each service to be consumed
 - **Redis**: In-memory cache to store published messages and processed files information
 - **Data Migration Service**: Consumes file info from message queue, then downloads it from Amazon S3 and uploads it to GCS
-- **Publisher**: A HTTP Web server that publishes the file info to message queue. Also provides APIs for managing the cache
+- **Publisher**: A HTTP Web server that publishes the file info to message queue.
+It has a job running in background for every 10 minutes to publish all the file in Amazon S3 and also at the same time, can handle the incoming request for cache management.
 
 ## Use Case Analysis
 
@@ -79,6 +80,151 @@ Use a **microservices architecture** to separate concerns:
 - Redis acts as the **shared state manager**.
 
 
+## Local Deployment
+
+### Preparing Cloud Plaform
+#### Amazon Web Service
+**Create new Access Key**
+    1. Go to https://us-east-1.console.aws.amazon.com/iam/home#/users
+    2. Select an existing user or create a new one if it is needed
+    3. Create an Access Key for ***Local Code***
+    4. Save the Access Key to local storage
+![alt text](https://github.com/phonghaido/cloud-data-migration/blob/main/images/aws-iam.gif?raw=true)
+
+**Create Amazon S3 Bucket**
+    1. Go to https://eu-central-1.console.aws.amazon.com/s3/home
+    2. Select "Create bucket"
+    3. Type the name of the bucket and click "Create Bucket"
+
+#### Google Cloud Plaform
+**Create new Service Account**
+    1. Go to https://console.cloud.google.com/iam-admin/serviceaccounts?project={your-project-id}
+    2. Create a service account with this roles (*Pub/Sub Admin, Pub/Sub Editor, Pub/Sub Publisher, Pub/Sub Subscriber, Storage Admin, Storage Object Admin, Storage Object Creator, Storage Object User*)
+    3. Create a new Key and store it in JSON format
+![alt text](https://github.com/phonghaido/cloud-data-migration/blob/main/images/gcp-svc-key.gif?raw=true)
+
+### Run Application Locally With Docker Compose
+All the commands to run and deploy the system can be found in ***Makefile***
+
+#### Local DEV
+Run (in WSL2 or Linux base OS)
+```console
+make compose-up
+```
+Stop
+```console
+make compose-down
+```
+
+#### Setting Up Local K8s Cluster with Minikube
+##### Install ***Minikube***
+```
+# Download the latest Minikube
+curl -Lo minikube https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+
+# Make it executable
+chmod +x ./minikube
+
+# Move it to your user's executable PATH
+sudo mv ./minikube /usr/local/bin/
+
+#Set the driver version to Docker
+minikube config set driver docker
+```
+
+##### Instsall ***kubectl***
+```
+# Download the latest Kubectl
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+
+# Make it executable
+chmod +x ./kubectl
+
+# Move it to your user's executable PATH
+sudo mv ./kubectl /usr/local/bin/
+```
+
+##### Run ***Minikube***
+```
+minikube start
+```
+
+##### Use minikube config in ***kubectl***
+```
+kubectl config use-context minikube
+minikube start
+```
+
+##### Point your shell to minikube's docker-daemon
+```
+eval $(minikube -p minikube docker-env)
+```
+
+##### Deploy the system to ***minikube***
+Before deployment, please add all the environment variables in to `kustomization.yaml` and add the `svc_account.json` to `/secret` directory
+```
+# Deploy Google PubSub Emulator
+make prod-pubsub
+
+# Deploy Redis
+make prod-redis
+
+# Deploy Data Migration Service
+make prod-migration-mk
+
+# Deploy Publisher
+make prod-publisher-mk
+```
+
+
 ## Demo
 
+#### Publisher Logs
+The first 3 logs are for the requests to retrieve (and delete) the cache, which are the keys and the eTags of all the files that have been published to PubSub message queue
+and has been consumed by the data migration service. The `DELETE` request makes sure that all the caches are removed so we can have a fresh start
 
+![alt text](https://github.com/phonghaido/cloud-data-migration/blob/main/images/publisher.png?raw=true)
+
+#### Data Migration Services Logs
+The ***Data-Migration-Service*** has been scaled to 2 services to test the ability to handle multiple requests at the same time without conflicting with each other
+
+**Pod 1**
+![alt text](https://github.com/phonghaido/cloud-data-migration/blob/main/images/pod1.png?raw=true)
+
+**Pod 2**
+![alt text](https://github.com/phonghaido/cloud-data-migration/blob/main/images/pod2.png?raw=true)
+
+
+## Usage
+This part is for using APIs to manage cache data. The Publisher is the HTTP server that handles the incoming requests.
+If you deploy the system to ***Minikube*** and don't have any service running on port `:8080`, then you can forward the port that the publisher of ***Minikube*** is running on in to your local machine
+
+```
+kubectl port-forward -n data-migration pod/publisher-588b54f974-b67lg 8080:8080 2>&1 >/dev/null &
+```
+
+#### APIs
+```
+# Get all the cache
+GET /cache
+curl http://localhost:8080/cache -u {admin_username}:{admin_password}
+
+# Get caches by its type (published or consumed)
+GET /cache/type?value={published/consumed}
+curl http://localhost:8080/cache/type?value=published -u {admin_username}:{admin_password}
+
+# Get cache by its name
+GET /cache/name?value={type:Amazon_S3_file_key}
+curl http://localhost:8080/cache/name?value=published:Docker Desktop Installer.exe -u {admin_username}:{admin_password}
+
+# Delete all the cache
+DELETE /cache
+curl -X DELETE http://localhost:8080/cache -u {admin_username}:{admin_password}
+
+# Delete caches by its type (published or consumed)
+DELETE /cache/type?value={published/consumed}
+curl -X DELETE http://localhost:8080/cache/type?value=published -u {admin_username}:{admin_password}
+
+# Delete cache by its name
+DELETE /cache/name?value={type:Amazon_S3_file_key}
+curl -X DELETE http://localhost:8080/cache/name?value=published:Docker Desktop Installer.exe -u {admin_username}:{admin_password}

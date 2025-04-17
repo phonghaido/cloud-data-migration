@@ -22,13 +22,13 @@ labels:
 configMapGenerator:
   - name: publisher-config
     literals:
-      - GCP_PROJECT_ID="feisty-deck-455815-v8"
-      - GCP_BUCKET_NAME="cloud-data-migration-x"
+      - GCP_PROJECT_ID=""
+      - GCP_BUCKET_NAME=""
       - GCP_PUBSUB_HOST="pubsub-emulator.gcloud.svc.cluster.local:8085"
-      - GCP_SUBSCRIPTION_ID="migrate-data-subscription"
-      - GCP_TOPIC_ID="migrate-data-topic"
-      - AWS_REGION="eu-central-1"
-      - AWS_S3_BUCKET="cloud-data-migration-x"
+      - GCP_SUBSCRIPTION_ID=""
+      - GCP_TOPIC_ID=""
+      - AWS_REGION=""
+      - AWS_S3_BUCKET=""
       - GCP_CREDENTIALS="/secrets/svc_account.json"
       - SYSTEM_MAX_WORKERS=5
       - REDIS_ADDRESS="redis.database.svc.cluster.local:6379"
