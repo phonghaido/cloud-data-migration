@@ -8,8 +8,7 @@ A project for migrating data from one Amazone S3 to Google Cloud Storage. The sy
 - **PubSub Emulator**: Message queue to coordinate and distribute message to each service to be consumed
 - **Redis**: In-memory cache to store published messages and processed files information
 - **Data Migration Service**: Consumes file info from message queue, then downloads it from Amazon S3 and uploads it to GCS
-- **Publisher**: A HTTP Web server that publishes the file info to message queue.
-It has a job running in background for every 10 minutes to publish all the file in Amazon S3 and also at the same time, can handle the incoming request for cache management.
+- **Publisher**: A HTTP Web server that publishes the file info to message queue. It has a job running in background for every 10 minutes to publish all the file in Amazon S3 and also at the same time, can handle the incoming request for cache management.
 
 ## Use Case Analysis
 
@@ -19,88 +18,92 @@ This section describes key functional and non-functional requirements of the sys
 
 ### ✅ Use Case 1: The service must be able to process multiple files concurrently
 
-**Requirement:**
+- **Requirement:**
 The system should handle multiple file transfers (from Amazon S3 to Google Cloud Storage) at the same time to maximize throughput and minimize the processing time
 
-**Solution:**
+- **Solution:**
 Chose **Golang** for its lightweight **goroutines**, which allows the application to manage thousands of concurrent operations
 
 
 
 ### ✅ Use Case 2: The system should be horizontally scalable and avoid conflicts between pods in K8s
 
-**Requirement:**
+- **Requirement:**
 In a distributed deployment with multiple instances of consumers (the data migration services), the system must avoid duplicating work and should be scalable across pods and nodes.
 
-**Solution:**
+- **Solution:**
 Chose **Google Cloud Pub/Sub** as a message queue to ensure message coordination and reliable distribution. Each file event is published once, and consumers independently subscribe and process messages.
 
 
 
 ### ✅ Use Case 3: Avoid reprocessing files that were already transferred
 
-**Requirement:**
+- **Requirement:**
 The system should not repeatedly process the same files, which could waste bandwidth and storage costs.
 
-**Solution:**
+- **Solution:**
 Chose **Redis** as a fast, in-memory cache to **track the state of each file** that has been published or consumed. Before publishing or processing, the service checks Redis to verify if the file was already handled.
 
 
 
 ### ✅ Use Case 4: Detect changes in already-processed files
 
-**Requirement:**
+- **Requirement:**
 If a file has already been processed, but it was later updated in Amazon S3 (it has the same file name as before), the system should detect the change and process it again.
 
-**Solution:**
+- **Solution:**
 Cache the file’s **ETag** (an identifier that changes when the file content changes) in Redis along with the file key. If the file has a **different ETag**, which means that the content was modified and the file should be reprocessed.
 
 
 
 ### ✅ Use Case 5: For local development and testing, the approach must minimize the costs from cloud services
 
-**Requirement:**
+- **Requirement:**
 Be able to test the full pipeline locally without needing access to cloud infrastructure (apart from Amazon S3 and GCS).
 
-**Solution:**
-- Use the **Google Cloud Pub/Sub Emulator** as the alternative for **Google Cloud Pub/Sub**
-- Use **Docker Compose** to run local instances of services like Pub/Sub, Redis, Data Migration Service and Message Publisher service for development and testing
-- Use **Minikube** to deploy all the instances to test the availability and the scalability
+- **Solution:**
+    - Use the **Google Cloud Pub/Sub Emulator** as the alternative for **Google Cloud Pub/Sub**
+    - Use **Docker Compose** to run local instances of services like Pub/Sub, Redis, Data Migration Service and Message Publisher service for development and testing
+    - Use **Minikube** to deploy all the instances to test the availability and the scalability
 
 
 ### ✅ Use Case 6: Modular and maintainable architecture
 
-**Requirement:**
+- **Requirement:**
 The system should be easy to extend, test, and maintain. Different components may need to be scaled independently.
 
-**Solution:**
-Use a **microservices architecture** to separate concerns:
-- The **publisher** detects new or updated files and publishes events.
-- The **consumer** handles downloading from S3 and uploading to GCS.
-- Redis acts as the **shared state manager**.
+- **Solution:**
+    - Use a **microservices architecture** to separate concerns:
+    - The **publisher** detects new or updated files and publishes events.
+    - The **consumer** handles downloading from S3 and uploading to GCS.
+    - Redis acts as the **shared state manager**.
 
 
 ## Local Deployment
 
 ### Preparing Cloud Plaform
 #### Amazon Web Service
-**Create new Access Key**
-    1. Go to https://us-east-1.console.aws.amazon.com/iam/home#/users
-    2. Select an existing user or create a new one if it is needed
-    3. Create an Access Key for ***Local Code***
-    4. Save the Access Key to local storage
+**Create new Access Key**  
+    1. Go to https://us-east-1.console.aws.amazon.com/iam/home#/users  
+    2. Select an existing user or create a new one if it is needed  
+    3. Create an Access Key for ***Local Code***  
+    4. Save the Access Key to local storage  
+
 ![alt text](https://github.com/phonghaido/cloud-data-migration/blob/main/demo/aws-iam.gif?raw=true)
 
-**Create Amazon S3 Bucket**
-    1. Go to https://eu-central-1.console.aws.amazon.com/s3/home
-    2. Select "Create bucket"
-    3. Type the name of the bucket and click "Create Bucket"
-
+**Create Amazon S3 Bucket**  
+    1. Go to https://eu-central-1.console.aws.amazon.com/s3/home  
+    2. Select "Create bucket"  
+    3. Type the name of the bucket and click "Create Bucket"  
+  
+  
+  
 #### Google Cloud Plaform
-**Create new Service Account**
-    1. Go to https://console.cloud.google.com/iam-admin/serviceaccounts?project={your-project-id}
-    2. Create a service account with this roles (*Pub/Sub Admin, Pub/Sub Editor, Pub/Sub Publisher, Pub/Sub Subscriber, Storage Admin, Storage Object Admin, Storage Object Creator, Storage Object User*)
-    3. Create a new Key and store it in JSON format
+**Create new Service Account**  
+    1. Go to https://console.cloud.google.com/iam-admin/serviceaccounts?project={your-project-id}  
+    2. Create a service account with this roles (*Pub/Sub Admin, Pub/Sub Editor, Pub/Sub Publisher, Pub/Sub Subscriber, Storage Admin, Storage Object Admin, Storage Object Creator, Storage Object User*)  
+    3. Create a new Key and store it in JSON format  
+
 ![alt text](https://github.com/phonghaido/cloud-data-migration/blob/main/demo/gcp-svc-key.gif?raw=true)
 
 ### Run Application Locally With Docker Compose
