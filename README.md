@@ -89,7 +89,7 @@ Use a **microservices architecture** to separate concerns:
     2. Select an existing user or create a new one if it is needed
     3. Create an Access Key for ***Local Code***
     4. Save the Access Key to local storage
-![alt text](https://github.com/phonghaido/cloud-data-migration/blob/main/images/aws-iam.gif?raw=true)
+![alt text](https://github.com/phonghaido/cloud-data-migration/blob/main/demo/aws-iam.gif?raw=true)
 
 **Create Amazon S3 Bucket**
     1. Go to https://eu-central-1.console.aws.amazon.com/s3/home
@@ -101,7 +101,7 @@ Use a **microservices architecture** to separate concerns:
     1. Go to https://console.cloud.google.com/iam-admin/serviceaccounts?project={your-project-id}
     2. Create a service account with this roles (*Pub/Sub Admin, Pub/Sub Editor, Pub/Sub Publisher, Pub/Sub Subscriber, Storage Admin, Storage Object Admin, Storage Object Creator, Storage Object User*)
     3. Create a new Key and store it in JSON format
-![alt text](https://github.com/phonghaido/cloud-data-migration/blob/main/images/gcp-svc-key.gif?raw=true)
+![alt text](https://github.com/phonghaido/cloud-data-migration/blob/main/demo/gcp-svc-key.gif?raw=true)
 
 ### Run Application Locally With Docker Compose
 All the commands to run and deploy the system can be found in ***Makefile***
@@ -183,16 +183,16 @@ make prod-publisher-mk
 The first 3 logs are for the requests to retrieve (and delete) the cache, which are the keys and the eTags of all the files that have been published to PubSub message queue
 and has been consumed by the data migration service. The `DELETE` request makes sure that all the caches are removed so we can have a fresh start
 
-![alt text](https://github.com/phonghaido/cloud-data-migration/blob/main/images/publisher.png?raw=true)
+![alt text](https://github.com/phonghaido/cloud-data-migration/blob/main/demo/publisher.png?raw=true)
 
 #### Data Migration Services Logs
 The ***Data-Migration-Service*** has been scaled to 2 services to test the ability to handle multiple requests at the same time without conflicting with each other
 
 **Pod 1**
-![alt text](https://github.com/phonghaido/cloud-data-migration/blob/main/images/pod1.png?raw=true)
+![alt text](https://github.com/phonghaido/cloud-data-migration/blob/main/demo/pod1.png?raw=true)
 
 **Pod 2**
-![alt text](https://github.com/phonghaido/cloud-data-migration/blob/main/images/pod2.png?raw=true)
+![alt text](https://github.com/phonghaido/cloud-data-migration/blob/main/demo/pod2.png?raw=true)
 
 
 ## Usage
